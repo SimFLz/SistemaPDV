@@ -54,10 +54,9 @@ builder.Services.AddSession(options =>
     options.Cookie.Name = "SalesUP.Session";
 });
 
-// MySQL
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+    options.UseSqlite(connectionString));
 
 var app = builder.Build();
 
