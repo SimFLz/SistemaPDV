@@ -144,7 +144,7 @@ public class CashRegisterController : BaseController
         var totalSales = sales.Sum(s => s.TotalAmount);
 
         cashRegister.CloseDate = DateTime.Now;
-        cashRegister.FinalAmount = totalSales + cashRegister.InitialAmount;
+        cashRegister.FinalAmount = totalSales - cashRegister.InitialAmount;
         cashRegister.Observations = observations;
         cashRegister.Status = CashRegisterStatus.Closed;
 
