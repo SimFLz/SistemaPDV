@@ -38,7 +38,6 @@ public class ReportsController : BaseController
         var totalSales = sales.Count;
         var averageTicket = totalSales > 0 ? totalRevenue / totalSales : 0;
 
-        // 🔧 CORREÇÃO: agrupa pelos pagamentos reais da tabela SalePayments
         var saleIds = sales.Select(s => s.Id).ToList();
         var payments = await _context.SalePayments
             .Where(sp => saleIds.Contains(sp.SaleId))
@@ -48,10 +47,9 @@ public class ReportsController : BaseController
             .GroupBy(sp => sp.PaymentMethod)
             .ToDictionary(g => g.Key, g => g.Sum(sp => sp.Amount));
 
-        var today = DateTime.Today;
-        var tomorrow = today.AddDays(1);
+        // 🔧 CORREÇÃO: busca caixa aberto em QUALQUER data, não só hoje
         var openCashRegister = await _context.CashRegisters
-            .FirstOrDefaultAsync(c => c.UserId == userId && c.OpenDate >= today && c.OpenDate < tomorrow && c.Status == CashRegisterStatus.Open);
+            .FirstOrDefaultAsync(c => c.UserId == userId && c.Status == CashRegisterStatus.Open);
 
         var viewModel = new DailyReportViewModel
         {

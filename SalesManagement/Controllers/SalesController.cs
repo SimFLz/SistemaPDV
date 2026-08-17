@@ -40,8 +40,17 @@ public class SalesController : BaseController
         return View();
     }
 
-    public IActionResult Register()
+    public async Task<IActionResult> Register()
     {
+        var userId = GetCurrentUserId();
+
+        // 🔧 Garante que só vende se houver caixa aberto (qualquer data)
+        var openRegister = await _context.CashRegisters
+            .FirstOrDefaultAsync(c => c.UserId == userId && c.Status == CashRegisterStatus.Open);
+
+        if (openRegister == null)
+            return RedirectToAction("Index", "CashRegister");
+
         ViewData["Title"] = "Nova Venda";
         var cart = GetCartFromSession();
         return View(cart);

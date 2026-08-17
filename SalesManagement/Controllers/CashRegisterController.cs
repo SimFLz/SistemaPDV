@@ -17,12 +17,11 @@ public class CashRegisterController : BaseController
 
     public async Task<IActionResult> Index()
     {
-        var today = DateTime.Today;
-        var tomorrow = today.AddDays(1);
         var userId = GetCurrentUserId();
 
+        // 🔧 Busca QUALQUER caixa aberto, não só do dia atual
         var openRegister = await _context.CashRegisters
-            .FirstOrDefaultAsync(c => c.UserId == userId && c.OpenDate >= today && c.OpenDate < tomorrow && c.Status == CashRegisterStatus.Open);
+            .FirstOrDefaultAsync(c => c.UserId == userId && c.Status == CashRegisterStatus.Open);
 
         if (openRegister != null)
             return RedirectToAction("Index", "Sales");
@@ -35,20 +34,19 @@ public class CashRegisterController : BaseController
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Open([Bind("InitialAmount,Observations")] CashRegister cashRegister)
     {
-        // 🔧 LIMPA ERROS DE CAMPOS PREENCHIDOS PELO SERVIDOR
+        // LIMPA ERROS...
         ModelState.Remove("OpenDate");
         ModelState.Remove("Status");
         ModelState.Remove("UserId");
-        ModelState.Remove("User");      // navegação
+        ModelState.Remove("User");
         ModelState.Remove("FinalAmount");
         ModelState.Remove("CloseDate");
 
-        var today = DateTime.Today;
-        var tomorrow = today.AddDays(1);
         var userId = GetCurrentUserId();
 
+        // 🔧 Verifica se já existe caixa aberto (qualquer data)
         var existingOpen = await _context.CashRegisters
-            .FirstOrDefaultAsync(c => c.UserId == userId && c.OpenDate >= today && c.OpenDate < tomorrow && c.Status == CashRegisterStatus.Open);
+            .FirstOrDefaultAsync(c => c.UserId == userId && c.Status == CashRegisterStatus.Open);
 
         if (existingOpen != null)
         {
@@ -95,28 +93,22 @@ public class CashRegisterController : BaseController
 
         if (type == "close")
         {
-            var startDate = cashRegister.OpenDate.Date;
-            var endDate = startDate.AddDays(1);
+            // 🔧 CORREÇÃO: pega vendas desde a abertura ATÉ AGORA, não só do dia da abertura
+            var startDate = cashRegister.OpenDate;
+            var endDate = DateTime.Now;
 
             var sales = await _context.Sales
-     .Where(s => s.UserId == GetCurrentUserId() && s.SaleDate >= startDate && s.SaleDate < endDate && s.Status != SaleStatus.Cancelled)
-     .Include(s => s.Items)
-     .ThenInclude(i => i.Product)
-     .Include(s => s.Payments) // 🔧 ADICIONAR
-     .ToListAsync();
+                .Where(s => s.UserId == GetCurrentUserId() && s.SaleDate >= startDate && s.SaleDate <= endDate && s.Status != SaleStatus.Cancelled)
+                .Include(s => s.Items)
+                .ThenInclude(i => i.Product)
+                .ToListAsync();
 
             var totalRevenue = sales.Sum(s => s.TotalAmount);
             var totalSales = sales.Count;
 
-            // 🔧 Agrupa pelos pagamentos reais
-            var saleIds = sales.Select(s => s.Id).ToList();
-            var payments = await _context.SalePayments
-                .Where(sp => saleIds.Contains(sp.SaleId))
-                .ToListAsync();
-
-            var salesByPayment = payments
-                .GroupBy(p => p.PaymentMethod)
-                .ToDictionary(g => g.Key, g => g.Sum(p => p.Amount));
+            var salesByPayment = sales
+                .GroupBy(s => s.PaymentMethod)
+                .ToDictionary(g => g.Key, g => g.Sum(s => s.TotalAmount));
 
             ViewData["TotalRevenue"] = totalRevenue;
             ViewData["TotalSales"] = totalSales;
